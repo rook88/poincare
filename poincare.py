@@ -25,18 +25,41 @@ class point():
     def __init__(self, z):
         self.z = z
         self.r = abs(z)
+        self.color = np.array([255, 255, 255])
+        self.color = self.color * (1 - self.r) ** 0.2
+        self.key = z
     def getInverse(self):
         ret = self.z / self.r ** 2
         return exteriorPoint(ret)
     def map(self, f):
         self.z = f(self.z)
+    def getCopy(self):
+        return point(self.z)
+    def getMapped(self, f):
+        return point(f(self.z))
+    def getMirror(self):
+        return point(self.z * -1)
+    def __str__(self):
+        return str(self.z)
+        
+class isometry():
+    def __init__(self, fromPoint, toPoint):
+        def map(z):
+            ret = (z + toPoint.z) / (1 + z * toPoint.z.conjugate())
+            return ret
+        self.map = map
 
 
 class circle():
-    def __init__(self, somePoint, someDirection, inverseRadius):
-        self.somePoint = somePoint
-        self.someDirection = someDirection
-        self.inverseRadius = inverseRadius
+    def __init__(self, somePoint = 1.0 + 0.0j, someDirection = 0.0 + 1.0j, inverseRadius = 1.0, center = None, radius = None):
+        if center == None:
+            self.somePoint = somePoint
+            self.someDirection = someDirection
+            self.inverseRadius = inverseRadius
+        else:
+            self.somePoint = center + radius
+            self.someDirection = 1j
+            self.inverseRadius = 1 / radius
         if self.isLine():
             self.radius = None
             self.center = None
@@ -61,7 +84,7 @@ class poincareImg():
     def __init__(self 
                  ,size = [960, 960]
                  ,pointColor = (125, 125, 125)
-                 ,pointRadius = 2
+                 ,pointRadius = 3
                  ,radius = 200
                  ):
         self.img = np.zeros((size[1], size[0], 3), dtype=np.uint8)
@@ -76,7 +99,10 @@ class poincareImg():
     def drawPoint(self, point):
         x = int(self.size[0] / 2 + self.radius * point.z.real)
         y = int(self.size[1] / 2 + self.radius * point.z.imag)
-        cv2.circle(self.img, (x, y), self.pointRadius, self.pointColor, -1)
+        if self.pointRadius > 0:
+            cv2.circle(self.img, (x, y), self.pointRadius, point.color, -1)
+        else:
+            self.img[y, x] = point.color
     def drawCircle(self, circle):
         if circle.isLine():
             p1 = circle.somePoint * self.radius - radiusOfLine * circle.someDirection
@@ -91,7 +117,7 @@ class poincareImg():
             x = int(self.size[0] / 2 + self.radius * center.real)
             y = int(self.size[1] / 2 + self.radius * center.imag)
             radius = int(circle.radius * self.radius)
-            cv2.circle(self.img, (x, y), radius, self.pointColor, 2)
+            cv2.circle(self.img, (x, y), radius, self.pointColor, 1)
     def getImg(self):
         return self.img
                  
