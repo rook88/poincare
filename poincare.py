@@ -22,11 +22,11 @@ def intersection(l1, l2):
 
 
 class point():
-    def __init__(self, z):
+    def __init__(self, z, color = np.array([255, 255, 255])):
         self.z = z
         self.r = abs(z)
-        self.color = np.array([255, 255, 255])
-        self.color = self.color * (1 - self.r) ** 0.2
+        self.color = color
+#      self.color = self.color * (1 - self.r) ** 0.2
         self.key = z
     def getInverse(self):
         ret = self.z / self.r ** 2
@@ -34,11 +34,11 @@ class point():
     def map(self, f):
         self.z = f(self.z)
     def getCopy(self):
-        return point(self.z)
+        return point(self.z, self.color)
     def getMapped(self, f):
-        return point(f(self.z))
+        return point(f(self.z), self.color)
     def getMirror(self):
-        return point(self.z * -1)
+        return point(self.z * -1, self.color)
     def __str__(self):
         return str(self.z)
         
@@ -83,7 +83,7 @@ class exteriorPoint(point):
 class poincareImg():
     def __init__(self 
                  ,size = [960, 960]
-                 ,pointColor = (125, 125, 125)
+                 ,pointColor = (25, 25, 25)
                  ,pointRadius = 3
                  ,radius = 200
                  ):
