@@ -20,7 +20,6 @@ def intersection(l1, l2):
         else:
             return point(ret)
 
-
 class point():
     def __init__(self, z, color = np.array([255, 255, 255])):
         self.z = z
@@ -41,6 +40,19 @@ class point():
         return point(self.z * -1, self.color)
     def __str__(self):
         return str(self.z)
+
+class interiorPoint(point):
+    def getPole(self):
+        pInv = self.getInverse()
+        b = exteriorPoint(0.5 * (self.z + pInv.z))
+        ret = circle(somePoint = b.z, someDirection = b.z * 1j, inverseRadius = 0.0) 
+        return ret
+
+origin = interiorPoint(0.0000 + 0.000j)
+
+class exteriorPoint(point):
+    pass
+
         
 class isometry():
     def __init__(self, fromPoint, toPoint):
@@ -48,7 +60,6 @@ class isometry():
             ret = (z + toPoint.z) / (1 + z * toPoint.z.conjugate())
             return ret
         self.map = map
-
 
 class circle():
     def __init__(self, somePoint = 1.0 + 0.0j, someDirection = 0.0 + 1.0j, inverseRadius = 1.0, center = None, radius = None):
@@ -74,11 +85,70 @@ class circle():
         else:
             return False
 
-class interiorPoint(point):
-    pass
+def genCircle(somePoint, someOtherPoint):
+    l1 = somePoint.getPole()
+    l2 = someOtherPoint.getPole()
+    b = intersection(l1, l2)
+#    print somePoint, someOtherPoint, b
+    if b == None:
+        b = exteriorPoint((somePoint.z - someOtherPoint.z) * 1j * 10000.0)
+    ret = circle(center = b.z, radius = abs(b.z - somePoint.z))
+    return ret
 
-class exteriorPoint(point):
-    pass
+def getInverse(point, circle):
+    return interiorPoint(np.conjugate(circle.radius ** 2 /(point.z - circle.center)) + circle.center)
+
+def getMirrorPoint(p1, p2, p3):
+    return getInverse(p1, genCircle(p2, p3))
+
+class segment():
+    def __init__(self, p1, p2):
+        self.p1 = p1
+        self.p2 = p2
+
+class polygon():
+    def __init__(self, center, vertice1 = origin, vertice2 = origin, verticeCount = 0, radius = 0, vertices = []):
+        self.center = center
+        if verticeCount and radius:
+            self.vertices = []
+            for i in range(verticeCount):
+                self.vertices.append(interiorPoint(radius * np.exp(2j * i * np.pi / verticeCount)))
+        else:
+            self.vertices = vertices
+        self.verticeCount = len(self.vertices)
+        self.radius = radius
+    def __str__(self):
+        return "{:.5} + {:.5}j".format(np.real(self.center.z), np.imag(self.center.z))
+    def getVertice(self, n):
+        ret = self.vertices[n % self.verticeCount]
+        return ret
+    def getMirror(self, n):
+        p1 = self.getVertice(n - 1)
+        p2 = self.getVertice(n)
+        retCenter = getMirrorPoint(self.center, p1, p2)
+        retVertices = []
+        for v in self.vertices:
+            retv = getMirrorPoint(v, p1, p2)
+#            print v, retv
+            retVertices.append(retv)
+        ret = polygon(retCenter, vertices = retVertices)
+        return ret
+    def side(self, n, point):
+        p1 = self.getVertice(n - 1)
+        p2 = self.getVertice(n)
+        c = genCircle(p1, p2)
+        p = getMirrorPoint(point, p1, p2)
+#        print point, c.center, p, abs(point.z - c.center), abs(p.z - c.center)
+        if abs(point.z - c.center) <= abs(p.z - c.center):
+            return p
+        else:
+            return None
+
+
+    def getEdges(self):
+        ret = []
+        for i in range(self.verticeCount):
+            ret.append(segment)
 
 class poincareImg():
     def __init__(self 
@@ -98,26 +168,71 @@ class poincareImg():
         cv2.circle(self.img, (x, y), self.radius, self.pointColor, 2)
     def drawPoint(self, point):
         x = int(self.size[0] / 2 + self.radius * point.z.real)
-        y = int(self.size[1] / 2 + self.radius * point.z.imag)
+        y = int(self.size[1] / 2 - self.radius * point.z.imag)
         if self.pointRadius > 0:
             cv2.circle(self.img, (x, y), self.pointRadius, point.color, -1)
         else:
             self.img[y, x] = point.color
-    def drawCircle(self, circle):
+    def drawCircle(self, circle, color, fill = False):
         if circle.isLine():
             p1 = circle.somePoint * self.radius - radiusOfLine * circle.someDirection
             p2 = circle.somePoint * self.radius + radiusOfLine * circle.someDirection
             x1 = int(self.size[0] / 2 + p1.real)
-            y1 = int(self.size[1] / 2 + p1.imag)
+            y1 = int(self.size[1] / 2 - p1.imag)
             x2 = int(self.size[0] / 2 + p2.real)
-            y2 = int(self.size[1] / 2 + p2.imag)
-            cv2.line(self.img, (x1, y1), (x2, y2), self.pointColor)
+            y2 = int(self.size[1] / 2 - p2.imag)
+            cv2.line(self.img, (x1, y1), (x2, y2), color)
         else:
             center = circle.center
             x = int(self.size[0] / 2 + self.radius * center.real)
-            y = int(self.size[1] / 2 + self.radius * center.imag)
+            y = int(self.size[1] / 2 - self.radius * center.imag)
             radius = int(circle.radius * self.radius)
-            cv2.circle(self.img, (x, y), radius, self.pointColor, 1)
-    def getImg(self):
-        return self.img
-                 
+            if fill:
+                thickness = -1
+            else:
+                thickness = 1
+            cv2.circle(self.img, (x, y), radius, color, 1)
+    def getImg(self, multiplier = 1.0):
+        mask = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
+        x = int(self.size[0] / 2)
+        y = int(self.size[1] / 2)
+        cv2.circle(mask, (x, y), int(self.radius * multiplier), (255, 255, 255), -1)
+        ret = cv2.bitwise_and(self.img, mask)
+        return ret
+    def drawPolygon(self, pg, color = (0, 0, 255), offset = 1.0):
+        mask = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
+        maskComplement = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
+        maskIter = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
+        maskIterComplement = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
+        mask[:] = color
+#        maskComplement[:] = (255, 255, 255)
+        pc = pg.center
+        for i in range(pg.verticeCount):
+            p1 = pg.getVertice(i)
+            p2 = pg.getVertice(i + 1)
+            c = genCircle(p1, p2)
+            center = c.center
+            x = int(self.size[0] / 2 + self.radius * offset * center.real)
+            y = int(self.size[1] / 2 - self.radius * offset * center.imag)
+            radius = int(c.radius * self.radius * offset) 
+            if abs(pc.z - center) > abs(p1.z - center):
+                maskIter[:] = color
+                maskIterComplement[:] = (0, 0, 0)
+                cv2.circle(maskIter, (x, y), radius + 3, (0, 0, 0), -1)
+                cv2.circle(maskIterComplement, (x, y), radius - 3, (255, 255, 255), -1)
+            else:
+                maskIter[:] = (0, 0, 0)
+                maskIterComplement[:] = (255, 255, 255)
+                cv2.circle(maskIter, (x, y), radius - 3, color, -1)
+                cv2.circle(maskIterComplement, (x, y), radius + 3, (0, 0, 0), -1)
+            mask = cv2.bitwise_and(maskIter, mask)
+            maskComplement = cv2.bitwise_or(maskIterComplement, maskComplement)
+#            cv2.circle(self.img, (x, y), radius, (0, 0, 255), 1)
+        self.img = cv2.bitwise_and(self.img, maskComplement)
+        self.img = cv2.bitwise_or(self.img, mask)
+            
+            
+            
+
+
+
