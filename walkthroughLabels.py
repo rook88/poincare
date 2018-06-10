@@ -4,28 +4,12 @@ import cv2
 import poincare
 import random
 import copy
-
-p = 3
-q = 7
-
-zerolabels = [i + 1 for i in range(p)]
-
-t1 = 1 - np.tan(np.pi / p) * np.tan(np.pi / q)
-t2 = 1 + np.tan(np.pi / p) * np.tan(np.pi / q)
-
-gonRadius = np.sqrt(t1 / t2)
-
-pImg = poincare.poincareImg(radius = 900, pointRadius = 5, size = [2000, 2000])
-#pImg.drawEdge()
-
-gonFundamental = poincare.polygon(poincare.origin, verticeCount = 5, radius = gonRadius)
-
-gons = {}
+import imageio
 
 class gonClass():
     def __init__(self, p, q, r, path):
         self.path = path
-        label = "-".join([str(d) for d in path])
+        label = "-".join([str(d) for d in reversed(path)])
         self.label = label
         self.color = colorFromPath(self.path)
         if label == "":
@@ -67,10 +51,10 @@ def colorFromPath(path):
     delta = 1.0 / p 
     for direction in list(reversed(path)):
         hue += (direction - 2) * delta * 180
-        delta /= p
+        delta /= p 
     hue = int(hue) % 180
     if path:
-        value = 255 * (3.0 / (2.0 + len(path)))
+        value = int(255 * (3.0 / (2.0 + len(path))))
         saturation = 255
     else:
         value = 255
@@ -86,7 +70,7 @@ def isNewGon(gNew):
     for label in gons:
         if label <> gNew.label:
             gOld = gons[label]
-            if abs(gNew.gon.center.z - gOld.gon.center.z) < 0.00001:
+            if abs(gNew.gon.center.z - gOld.gon.center.z) < 0.001:
                 return False
     return True
 
@@ -131,36 +115,82 @@ def iterLabels(n):
                 pass
 #                print("Old: {}".format(temp))
 
+p = 3
+q = 7
+
+zerolabels = [i + 1 for i in range(p)]
+
+t1 = 1 - np.tan(np.pi / p) * np.tan(np.pi / q)
+t2 = 1 + np.tan(np.pi / p) * np.tan(np.pi / q)
+
+gonRadius = np.sqrt(t1 / t2)
+
+gonFundamental = poincare.polygon(poincare.origin, verticeCount = 5, radius = gonRadius)
+
+gons = {}
 gons[""] = gonClass(p, q, gonRadius, [])
 gonsTable = [gonClass(p, q, gonRadius, [])]
 
-#iterLabel([])
-iterLabels(0)
-iterLabels(1)
-iterLabels(2)
-iterLabels(3)
-#iterLabels(4)
-#iterLabels(5)
+depth = 4
+for i in range(depth):
+    iterLabels(i)
 
 print gons.keys()
 
-multiplier = 14.2
-multiplier = 1.0
+gonsTable.sort(key = lambda x: x.label)
 
-def showImg():
-    img = pImg.getImg(multiplier = multiplier)
-    img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
-    img = cv2.blur(img, (4, 4))
-    img = cv2.resize(img, dsize = (800, 800))
+print [g.label for g in gonsTable]
+
+#exit(0)
+
+def showImg(pImg):
+    img = getImg(pImg)
     cv2.imshow('myImg', img)
     cv2.imwrite("lastPolygon.jpg", img)
     cv2.waitKey(0)
 
+def getImg(pImg):
+    multiplier = pImg.multiplier
+    img = pImg.getImg(multiplier = multiplier)
+    img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+    img = cv2.blur(img, (4, 4))
+    img = cv2.resize(img, dsize = (800, 800))
+    return img
 
-for gon in gonsTable:
+def iterImg(multiplier = 1.0):
+    pImg = poincare.poincareImg(radius = 900, pointRadius = 5, size = [2000, 2000])
+    pImg.multiplier = multiplier
+#    if gon.label in ["", "1", "1-2", "1-2-3", "1-2-3-1", "1-2-3-1-2"] or 1 == 0:
+    for gon in gonsTable:
 #    gon = gons[label]
-    gonNew = getGon(p, q, gonRadius / multiplier, gon.path)
-    print gon, gonNew, gon.color
-    if gon.label in ["", "1", "2-1", "1-2-1"] or 1 == 1:
-        pImg.drawPolygon(gonNew, color = gon.color, offset = multiplier)
-        showImg()
+        gonNew = getGon(p, q, gonRadius / multiplier, gon.path)
+        if gon.label == "1-2-3-1" or 1 == 1:
+#            print gon, gonNew, gon.color
+            pImg.drawPolygon(gonNew, color = gon.color, offset = multiplier)
+    return pImg
+
+mps = [5.0]
+ims = []
+
+frameNumber = 144
+
+mpInit = 10.0 ** (1.0 / frameNumber)
+ts = np.linspace(0.0, 1.0, frameNumber)
+print ts
+mps = [mpInit ** (t * t * frameNumber) for t in ts]
+print mps
+
+#exit(0)
+
+frameN = 0
+for mp in mps:
+    frameN += 1
+    print "frame {}".format(frameN)
+    pImg = iterImg(mp)
+#    showImg(pImg)
+    ims.append(getImg(pImg))
+
+
+ims += list(reversed(ims))
+imageio.mimwrite(uri = "polygon.mp4", ims = ims, macro_block_size = None, fps = 12)
+

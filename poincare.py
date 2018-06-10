@@ -230,7 +230,19 @@ class poincareImg():
 #            cv2.circle(self.img, (x, y), radius, (0, 0, 255), 1)
         self.img = cv2.bitwise_and(self.img, maskComplement)
         self.img = cv2.bitwise_or(self.img, mask)
+"""
+        print color
+        cv2.imshow('self.img', cv2.cvtColor(self.img, cv2.COLOR_HSV2RGB))
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
             
+           cv2.imshow('mask', mask)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            cv2.imshow('maskComplement', maskComplement)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+"""
             
             
 
