@@ -131,15 +131,6 @@ gons = {}
 gons[""] = gonClass(p, q, gonRadius, [])
 gonsTable = [gonClass(p, q, gonRadius, [])]
 
-depth = 4
-for i in range(depth):
-    iterLabels(i)
-
-print gons.keys()
-
-gonsTable.sort(key = lambda x: x.label)
-
-print [g.label for g in gonsTable]
 
 #exit(0)
 
@@ -169,15 +160,25 @@ def iterImg(multiplier = 1.0):
             pImg.drawPolygon(gonNew, color = gon.color, offset = multiplier)
     return pImg
 
-mps = [5.0]
+
+depth = 8
+for i in range(depth):
+    iterLabels(i)
+
+#print gons.keys()
+gonsTable.sort(key = lambda x: x.label)
+print [g.label for g in gonsTable]
+
 ims = []
 
-frameNumber = 144
+frameNumber = 72
 
 mpInit = 10.0 ** (1.0 / frameNumber)
 ts = np.linspace(0.0, 1.0, frameNumber)
+ts = [(1.0 + n) / frameNumber for n in range(frameNumber)]
+
 print ts
-mps = [mpInit ** (t * t * frameNumber) for t in ts]
+mps = [np.sqrt(1 / t) for t in ts]
 print mps
 
 #exit(0)
@@ -192,5 +193,5 @@ for mp in mps:
 
 
 ims += list(reversed(ims))
-imageio.mimwrite(uri = "polygon.mp4", ims = ims, macro_block_size = None, fps = 12)
+imageio.mimwrite(uri = "polygon.mp4", ims = ims, macro_block_size = None, fps = 24)
 
