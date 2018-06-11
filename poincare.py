@@ -1,5 +1,49 @@
 import numpy as np
 import cv2
+import getopt, sys
+
+testMode = False
+outputFile = ""
+depth = 4
+p = 3
+q = 7
+frameCount = 1
+zoom = 1.0
+multiplier = 0.0
+
+opts, args = getopt.getopt(sys.argv[1:], None, [
+    'test'
+    ,'file='
+    ,'depth='
+    ,'p='
+    ,'q='
+    ,'frames='
+    ,'zoom='
+    ,'multiplier='
+])
+
+for o, a in opts:
+    if o == '--test':
+        testMode = True
+    if o == '--file':
+        outputFile = a
+    if o == '--depth':
+        depth = int(a)
+    if o == '--p':
+        p = int(a)
+    if o == '--q':
+        q = int(a)
+    if o == '--frames':
+        frameCount = int(a)
+    if o == '--zoom':
+        zoom = float(a)
+    if o == '--multiplier':
+        multiplier = float(a)
+        
+
+def zoomPoint(z):
+    return zoom * z
+    
 
 radiusOfLine = 10000.0
 
@@ -35,11 +79,11 @@ class point():
     def getCopy(self):
         return point(self.z, self.color)
     def getMapped(self, f):
-        return point(f(self.z), self.color)
+        return interiorPoint(f(self.z), self.color)
     def getMirror(self):
         return point(self.z * -1, self.color)
     def __str__(self):
-        return str(self.z)
+        return "point " + str(self.z)
 
 class interiorPoint(point):
     def getPole(self):
@@ -119,6 +163,9 @@ class polygon():
         self.radius = radius
     def __str__(self):
         return "{:.5} + {:.5}j".format(np.real(self.center.z), np.imag(self.center.z))
+    def getVerticeZoomed(self, n):
+        retN = self.vertices[n % self.verticeCount].getMapped(zoomPoint)
+        return retN
     def getVertice(self, n):
         ret = self.vertices[n % self.verticeCount]
         return ret
@@ -156,7 +203,7 @@ class poincareImg():
                  ,pointColor = (25, 25, 25)
                  ,pointRadius = 3
                  ,radius = 200
-                 ):
+                 ,backgroundIsWhite = False):
         self.img = np.zeros((size[1], size[0], 3), dtype=np.uint8)
         self.size = size
         self.pointRadius = pointRadius
