@@ -244,7 +244,7 @@ class poincareImg():
         x = int(self.size[0] / 2)
         y = int(self.size[1] / 2)
         cv2.circle(mask, (x, y), int(self.radius * multiplier), (255, 255, 255), -1)
-        ret = cv2.bitwise_and(self.img, mask)
+        ret = cv2.bitwise_and(self.img, mask) 
         return ret
     def drawPolygon(self, pg, color = (0, 0, 255), offset = 1.0):
         mask = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)

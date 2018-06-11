@@ -135,7 +135,7 @@ def iterLabels(n):
             else:
                 pass
 #                print("Old: {}".format(temp))
-
+ 
 def showImg(pImg):
     img = getImg(pImg)
     cv2.imshow('myImg', img)
