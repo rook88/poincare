@@ -83,7 +83,7 @@ class point():
     def getMirror(self):
         return point(self.z * -1, self.color)
     def __str__(self):
-        return "point " + str(self.z)
+        return "center = {}, radius = {}, direction = {}".format(self.z, self.r, np.imag(np.log(self.z)) / np.pi * 180)
 
 class interiorPoint(point):
     def getPole(self):
@@ -124,10 +124,17 @@ class circle():
             self.center = self.somePoint + self.someDirection * 1j / self.inverseRadius
             self.direction = False
     def isLine(self):
-        if self.inverseRadius < 1 / radiusOfLine:
+        if self.inverseRadius < 1.0 / radiusOfLine:
             return True
         else:
             return False
+    def __str__(self):
+        ret = "circle "
+        ret += " radius = {}".format(self.radius)
+        ret += " distance = {}".format(abs(self.center))
+        ret += " angle = {}".format(np.imag(np.log(self.center)) / np.pi * 180)
+        ret += " center = {}".format(self.center)
+        return ret
 
 def genCircle(somePoint, someOtherPoint):
     l1 = somePoint.getPole()
@@ -135,7 +142,7 @@ def genCircle(somePoint, someOtherPoint):
     b = intersection(l1, l2)
 #    print somePoint, someOtherPoint, b
     if b == None:
-        b = exteriorPoint((somePoint.z - someOtherPoint.z) * 1j * 10000.0)
+        b = exteriorPoint((somePoint.z - someOtherPoint.z) * 1j * radiusOfLine)
     ret = circle(center = b.z, radius = abs(b.z - somePoint.z))
     return ret
 
@@ -162,7 +169,7 @@ class polygon():
         self.verticeCount = len(self.vertices)
         self.radius = radius
     def __str__(self):
-        return "{:.5} + {:.5}j".format(np.real(self.center.z), np.imag(self.center.z))
+        return "center = {:.5} + {:.5}j, direction = {}".format(np.real(self.center.z), np.imag(self.center.z), 1)
     def getVerticeZoomed(self, n):
         retN = self.vertices[n % self.verticeCount].getMapped(zoomPoint)
         return retN
@@ -246,6 +253,49 @@ class poincareImg():
         cv2.circle(mask, (x, y), int(self.radius * multiplier), (255, 255, 255), -1)
         ret = cv2.bitwise_and(self.img, mask) 
         return ret
+    def getPolygonGeneratingCircles(self, pg):
+        ret = []
+        for i in range(pg.verticeCount):
+            p1 = pg.getVertice(i)
+            z1 = p1.z
+            p2 = pg.getVertice(i + 1)
+            z2 = p2.z
+            c = genCircle(p1, p2)
+            ret.append(c)
+        return ret
+    def drawPolygonVertices(self, pg, color = (0, 0, 255), offset = 1.0):
+        pc = pg.center
+        for i in range(pg.verticeCount):
+            p1 = pg.getVertice(i)
+            z1 = p1.z
+            p2 = pg.getVertice(i + 1)
+            z2 = p2.z
+            c = genCircle(p1, p2)
+            center = c.center
+            x = int(self.size[0] / 2 + self.radius * offset * center.real)
+            y = int(self.size[1] / 2 - self.radius * offset * center.imag)
+            radius = int(c.radius * self.radius * offset)
+            startAngle = (-1 * np.imag(np.log((z1 - center))) / np.pi * 180) % 360
+            endAngle = startAngle + 2
+            endAngle = (-1 * np.imag(np.log((z2 - center))) / np.pi * 180) % 360
+            angle = int(np.imag(np.log((z1 + z2 - center))) / np.pi * 180) 
+            if (endAngle - startAngle) % 360 > 180.0:            
+                startAngle, endAngle = endAngle, startAngle
+
+            if startAngle > endAngle:
+                startAngle -= 360
+#            if c.isLine():
+            if c.radius > 1000.0:
+                cv2.line(self.img, (x1, y1), (x2, y2), color, self.pointRadius)
+            else:
+                cv2.ellipse(self.img
+                            ,center = (x, y)
+                            ,axes = (radius, radius)
+                            ,angle = 0
+                            ,startAngle = startAngle
+                            ,endAngle = endAngle
+                            ,color = color
+                            ,thickness = self.pointRadius)
     def drawPolygon(self, pg, color = (0, 0, 255), offset = 1.0):
         mask = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
         maskComplement = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)

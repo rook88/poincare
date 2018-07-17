@@ -56,6 +56,15 @@ def colorFromPath2(path):
 def colorFromPath3(z, path, weightRaw):
     weight = np.sqrt(weightRaw)
     (hue1, saturation1, value1) = colorFromZ(z, path)
+    value2 = 128
+    saturation = int(weight * saturation1)
+    value = int(weight * value1 + (1 - weight) * value2)
+    hue = hue1
+    return (hue, saturation, value)
+
+def colorFromPath2(z, path, weightRaw):
+    weight = np.sqrt(weightRaw)
+    (hue1, saturation1, value1) = colorFromZ(z, path)
     value2 = 1 + ((len(path) + 1) % 2) * 254
     saturation = int(weight * saturation1)
     value = int(weight * value1 + (1 - weight) * value2)
@@ -198,7 +207,7 @@ if poincare.multiplier:
     zooms = [poincare.zoom]
 else:
     mps = [(1.0 / t) ** 0.6 for t in ts]
-    zooms = [0.4 + 0.6 * t for t in ts]
+    zooms = [zoomFactor + (1 - zoomFactor) * t for t in ts]
     
 print mps
 print zooms
