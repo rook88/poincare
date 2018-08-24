@@ -3,6 +3,7 @@ import cv2
 import getopt, sys
 
 testMode = False
+imagePath = ""
 outputFile = ""
 depth = 4
 p = 3
@@ -13,6 +14,7 @@ multiplier = 0.0
 
 opts, args = getopt.getopt(sys.argv[1:], None, [
     'test'
+    ,'imagepath='
     ,'file='
     ,'depth='
     ,'p='
@@ -22,9 +24,13 @@ opts, args = getopt.getopt(sys.argv[1:], None, [
     ,'multiplier='
 ])
 
+cWhite = (255, 255, 0)
+
 for o, a in opts:
     if o == '--test':
         testMode = True
+    if o == '--imagepath':
+        imagePath = a
     if o == '--file':
         outputFile = a
     if o == '--depth':
@@ -153,7 +159,8 @@ class circle():
             p2 = self.center + self.radius * 1j
             p3 = self.center - self.radius * 1j
         return (p1, p2, p3)
-
+    def getKey(self):
+        return str(np.round(self.center.real, 5)) + "," + str(np.round(self.center.imag, 5)) 
 
 
 def genCircle(somePoint, someOtherPoint):
@@ -273,7 +280,7 @@ class poincareImg():
             cv2.circle(self.img, (x, y), self.pointRadius, point.color, -1)
         else:
             self.img[y, x] = point.color
-    def drawCircle(self, circle, color = (125, 125, 125), fill = False):
+    def drawCircle(self, circle, color = cWhite, fill = False, thickness = 1):
         if circle.isLine():
             p1 = circle.somePoint * self.radius - radiusOfLine * circle.someDirection
             p2 = circle.somePoint * self.radius + radiusOfLine * circle.someDirection
@@ -289,10 +296,10 @@ class poincareImg():
             radius = int(circle.radius * self.radius)
             if fill:
                 thickness = -1
-            else:
-                thickness = 1
-            cv2.circle(self.img, (x, y), radius, color, 1)
-    def getImg(self, multiplier = 1.0, hasMask = True):
+#            else:
+#                thickness = 1
+            cv2.circle(self.img, (x, y), radius, color, thickness)
+    def getImg(self, multiplier = 1.0, hasMask = True, resize = None):
         mask = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
         x = int(self.size[0] / 2)
         y = int(self.size[1] / 2)
@@ -301,6 +308,9 @@ class poincareImg():
             ret = cv2.bitwise_and(self.img, mask) 
         else:
             ret = self.img
+        if resize:
+            ret = cv2.blur(ret, (3, 3))
+            ret = cv2.resize(ret, dsize = resize)
         return ret
     def drawPolygon(self, pg, color = (0, 0, 255), offset = 1.0):
         mask = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
