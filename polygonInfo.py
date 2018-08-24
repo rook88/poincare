@@ -118,7 +118,10 @@ mainAngle = 360.0 / p
 
 groups = {}
 for c in allCircles.values():
+    if c.radius > 100.0:
+        c.radius = 0.0
 #    key = "{:4.1f}".format(c.radius * diskRadius)
+
     key = int(np.round(c.radius * diskRadius, 0))
     if key in groups:
         groups[key].append(c)
@@ -143,30 +146,32 @@ def rational(x):
 
 def toFirstRadius(x):
     a = x / 180.0 * np.pi
-    ret = np.sqrt(2 - 2 * np.cos(a)) * firstRadius
+    ret = np.sqrt(2 - 2 * np.cos(a)) * helpRadius
     return ret
 
-firstRadius = abs(groups[a[0]][0].center) * diskRadius
-firstAngle = toFirstRadius(mainAngle)
+if poincare.zoom > 1:
+    helpRadius = poincare.zoom
+else:
+    helpRadius = groups[a[0]][0].radius
 
 print "========================================================================"
 print "p, q        = {},{}".format(p, q)
 print "mainAngle   = {:>5.1f}".format(mainAngle)
 print "diskRadius  = {:>5.1f}".format(diskRadius)
-print "firstRadius = {:>5.1f}".format(firstRadius)
-print "firstAngle  = {:>5.1f}".format(firstAngle)
+print "helpRadius = {:>5.1f}".format(helpRadius)
+#print "firstAngle  = {:>5.1f}".format(firstAngle)
 print "---- vertice distances -------------------------------------------------"
 for vDistance in vDistances:
     print vDistance
 
 for key in a:
     c = groups[key][0]
+    if c.radius * diskRadius < 5.0 and c.radius > 0:
+        continue
     print "-------------------------------------- dist = {:5.1f} radius = {:5.1f} -----".format(
         abs(c.center) * diskRadius
             ,c.radius * diskRadius
             )
-    if c.radius * diskRadius < 0.5:
-        continue
 #    for c in groups[key]:
 #        print c, np.round(np.imag(np.log(c.center)), 9)  / np.pi * 180
     angles = [np.imag(np.log(c.center))  / np.pi * 180 for c in groups[key]]
@@ -181,6 +186,7 @@ for key in a:
         tanAngle = np.tan(angle / 180 * np.pi)
         toFirst = toFirstRadius(angle)
         (a, b) = rational(tanAngle)
-        print "{:<6.1f} {:>6.1f} {:>6.4} = {} / {}".format(angle, toFirst, tanAngle, a, b)
+#        print "{:<6.1f} {:>6.1f} {:>6.4} = {} / {}".format(angle, toFirst, tanAngle, a, b)
+        print "{:<6.1f} {:>6.1f}".format(angle, toFirst)        
 
 
