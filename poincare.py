@@ -3,6 +3,7 @@ import cv2
 import getopt, sys
 
 testMode = False
+imagePath = ""
 outputFile = ""
 depth = 4
 p = 3
@@ -13,6 +14,7 @@ multiplier = 0.0
 
 opts, args = getopt.getopt(sys.argv[1:], None, [
     'test'
+    ,'imagepath='
     ,'file='
     ,'depth='
     ,'p='
@@ -22,9 +24,13 @@ opts, args = getopt.getopt(sys.argv[1:], None, [
     ,'multiplier='
 ])
 
+cWhite = (255, 255, 0)
+
 for o, a in opts:
     if o == '--test':
         testMode = True
+    if o == '--imagepath':
+        imagePath = a
     if o == '--file':
         outputFile = a
     if o == '--depth':
@@ -118,23 +124,46 @@ class circle():
         if self.isLine():
             self.radius = None
             self.center = None
-            self.direction = someDirection
+            self.direction = someDirection / abs(someDirection)
         else:
             self.radius = 1 / self.inverseRadius
             self.center = self.somePoint + self.someDirection * 1j / self.inverseRadius
-            self.direction = False
+            self.direction = None
+    def __str__(self):
+        ret = "circle, center = {center}, some point = {somePoint}, some direction = {someDirection}".format(**self.__dict__)
+        return ret
+    def __eq__(self, other):
+        if self.isLine():
+            if other.isLine():
+                return self.direction == other.direction
+            else:
+                return False
+        else:
+            if other.isLine():
+                return False
+            else:
+                return self.radius == other.radius and self.center == other.center
+        
     def isLine(self):
         if self.inverseRadius < 1.0 / radiusOfLine:
             return True
         else:
             return False
-    def __str__(self):
-        ret = "circle "
-        ret += " radius = {}".format(self.radius)
-        ret += " distance = {}".format(abs(self.center))
-        ret += " angle = {}".format(np.imag(np.log(self.center)) / np.pi * 180)
-        ret += " center = {}".format(self.center)
-        return ret
+
+    def getSomePoints(self):
+        if self.isLine():
+            p1 = self.somePoint
+            p2 = self.somePoint + self.someDirection
+            p3 = self.somePoint - self.someDirection
+        else:
+            p1 = self.center + self.radius
+            p2 = self.center + self.radius * 1j
+            p3 = self.center - self.radius * 1j
+        return (p1, p2, p3)
+    def getKey(self):
+        return str(np.round(self.center.real, 5)) + "," + str(np.round(self.center.imag, 5)) 
+
+
 
 def genCircle(somePoint, someOtherPoint):
     l1 = somePoint.getPole()
@@ -146,8 +175,34 @@ def genCircle(somePoint, someOtherPoint):
     ret = circle(center = b.z, radius = abs(b.z - somePoint.z))
     return ret
 
+def genCircleFromPoints(p1, p2, p3):
+#    print "gen circle from points: ", p1, p2, p3
+    l1 = circle(somePoint = (p1 + p2) / 2, someDirection = (p2 - p1) * 1j, inverseRadius = 0.0)
+    l2 = circle(somePoint = (p1 + p3) / 2, someDirection = (p3 - p1) * 1j, inverseRadius = 0.0)
+    center = intersection(l1, l2)
+    if center:
+        radius = abs(p1 - center.z)
+        ret = circle(center = center.z, radius = radius)
+#        print center, radius, ret
+    else:
+        ret = l1
+    return ret
+
 def getInverse(point, circle):
-    return interiorPoint(np.conjugate(circle.radius ** 2 /(point.z - circle.center)) + circle.center)
+    if circle.isLine():
+        return np.conjugate((point - circle.somePoint) / circle.direction) * circle.direction + circle.somePoint
+    else:
+        return np.conjugate(circle.radius ** 2 /(point - circle.center)) + circle.center
+
+def getInverseCircle(circle_1, circle_2):
+    p1, p2, p3 = circle_1.getSomePoints()
+    q1 = getInverse(p1, circle_2)
+    q2 = getInverse(p2, circle_2)
+    q3 = getInverse(p3, circle_2)
+#    print q1, q2, q3
+    return genCircleFromPoints(q1, q2, q3)
+#    print p1, p2, p3
+
 
 def getMirrorPoint(p1, p2, p3):
     return getInverse(p1, genCircle(p2, p3))
@@ -227,7 +282,7 @@ class poincareImg():
             cv2.circle(self.img, (x, y), self.pointRadius, point.color, -1)
         else:
             self.img[y, x] = point.color
-    def drawCircle(self, circle, color, fill = False):
+    def drawCircle(self, circle, color = cWhite, fill = False, thickness = 1):
         if circle.isLine():
             p1 = circle.somePoint * self.radius - radiusOfLine * circle.someDirection
             p2 = circle.somePoint * self.radius + radiusOfLine * circle.someDirection
@@ -243,15 +298,21 @@ class poincareImg():
             radius = int(circle.radius * self.radius)
             if fill:
                 thickness = -1
-            else:
-                thickness = 1
-            cv2.circle(self.img, (x, y), radius, color, 1)
-    def getImg(self, multiplier = 1.0):
+#            else:
+#                thickness = 1
+            cv2.circle(self.img, (x, y), radius, color, thickness)
+    def getImg(self, multiplier = 1.0, hasMask = True, resize = None):
         mask = np.zeros((self.size[1], self.size[0], 3), dtype=np.uint8)
         x = int(self.size[0] / 2)
         y = int(self.size[1] / 2)
         cv2.circle(mask, (x, y), int(self.radius * multiplier), (255, 255, 255), -1)
-        ret = cv2.bitwise_and(self.img, mask) 
+        if hasMask:
+            ret = cv2.bitwise_and(self.img, mask) 
+        else:
+            ret = self.img
+        if resize:
+            ret = cv2.blur(ret, (3, 3))
+            ret = cv2.resize(ret, dsize = resize)
         return ret
     def getPolygonGeneratingCircles(self, pg):
         ret = []

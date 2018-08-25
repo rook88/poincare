@@ -6,8 +6,6 @@ import random
 import copy
 import imageio
 
-theta = 1.5 - np.sqrt(5) * 0.5 
-
 class gonClass():
     def __init__(self, p, q, r, path):
         self.path = path
@@ -22,13 +20,7 @@ class gonClass():
                 gonIter = gonClass(p, q, r, path[1:])
                 self.gon = gonIter.gon.getMirror(int(path[0]))
         self.color = colorFromZ(self.gon.center.z, self.path)
-        if path:
-            d = path[0]
-        else:
-            d = 1
-        self.direction = np.imag(np.log(self.gon.center.z ** p)) 
-#        self.direction = np.imag(np.log(self.gon.center.z - np.exp(1j ** d) * 0.001)) 
-#        self.direction = np.imag(np.log(self.gon.center.z ** p * np.exp(np.pi * theta * 1j)))
+        self.direction = np.imag(np.log(self.gon.center.z ** p))
     def __str__(self):
         ret = "Gon, label = {}, polygon = {}, direction = {}".format(self.label, self.gon, self.direction)
         return ret
@@ -39,6 +31,9 @@ def getGon(p, q, r, label):
     else:
         iter = getGon(p, q, r, label[1:])
         return iter.getMirror(int(label[0]))
+
+theta = 1.5 - np.sqrt(5) * 0.5 
+
 
 def colorFromLabel(label):
     hue = int(len(label) * theta * 180) % 180
@@ -54,15 +49,6 @@ def colorFromPath2(path):
     return (hue, 255, 255)
 
 def colorFromPath3(z, path, weightRaw):
-    weight = np.sqrt(weightRaw)
-    (hue1, saturation1, value1) = colorFromZ(z, path)
-    value2 = 128
-    saturation = int(weight * saturation1)
-    value = int(weight * value1 + (1 - weight) * value2)
-    hue = hue1
-    return (hue, saturation, value)
-
-def colorFromPath2(z, path, weightRaw):
     weight = np.sqrt(weightRaw)
     (hue1, saturation1, value1) = colorFromZ(z, path)
     value2 = 1 + ((len(path) + 1) % 2) * 254
@@ -112,12 +98,11 @@ def isNewGon(gNew):
 
 def iterLabels(n):
     generation = [gons[l] for l in gons if len(gons[l].path) == n]
-    generation.sort(key = lambda x: x.direction)
-    for zerolabel in zerolabels:
-        for gOld in generation:
+    for gOld in generation:
+        for zerolabel in zerolabels:
             if gOld.path:
                 nextLabelItem = (zerolabel + gOld.path[-1] - 1) % p + 1
-#                nextLabelItem = zerolabel
+                nextLabelItem = zerolabel
             else:
                 nextLabelItem = zerolabel
             newPath = gOld.path + [nextLabelItem]
@@ -154,12 +139,8 @@ def iterImg(multiplier = 1.0, reverse = False, radiusFactor = 1.0):
         tempTable = gonsTable
     for gon in tempTable:
         gonNew = getGon(p, q, gonRadius / multiplier, gon.path)
-        if multiplier < 1:
-            w = 1.0
-        else:
-            w = 1.0 / multiplier / multiplier
-        color = colorFromPath3(gon.gon.center.z, gon.path, w)
-#        print gon, gonNew, gon.color, color
+        color = colorFromPath3(gon.gon.center.z, gon.path, 1.0 / multiplier / multiplier)
+        print gon, gonNew, gon.color, color
         pImg.drawPolygon(gonNew, color = color, offset = multiplier)
     return pImg
 
@@ -181,59 +162,46 @@ gons[""] = gonClass(p, q, gonRadius, [])
 depth = poincare.depth
 for i in range(depth):
     iterLabels(i)
-    print [label for label in gons]
 
 gonsTable = [gons[l] for l in gons]
 gonsTable.sort(key = lambda x: x.direction)
 print [g.label for g in gonsTable]
 
 ims = []
-ims2 = []
 
 frameCount = poincare.frameCount
 zoomFactor = poincare.zoom
 
 mpInit = 10.0 ** (1.0 / frameCount)
 ts = np.linspace(0.0, 1.0, frameCount)
-tsRaw = [(1.0 + n) / frameCount for n in range(frameCount)]
-ts = [t - t * np.exp(-t * 8) for t in tsRaw]
+ts = [(1.0 + n) / frameCount for n in range(frameCount)]
 
-print zip(ts, tsRaw)
-
-#exit(0)
+print ts
 
 if poincare.multiplier:
     mps = [poincare.multiplier]
-    zooms = [poincare.zoom]
 else:
-    mps = [(1.0 / t) ** 0.6 for t in ts]
-    zooms = [zoomFactor + (1 - zoomFactor) * t for t in ts]
-    
+    mps = [np.sqrt(1 / t) for t in ts]
+
 print mps
-print zooms
+
 
 #exit(0)
 
 frameN = 0
-for mp, zoom in zip(mps, zooms):
+for mp in mps:
     frameN += 1
     print "frame {}".format(frameN)
-    pImg = iterImg(mp, reverse = False, radiusFactor = zoom)
-    pImg2 = iterImg(mp, reverse = True, radiusFactor = zoom)
+    pImg = iterImg(mp, reverse = False, radiusFactor = poincare.zoom)
     if poincare.testMode:
 #        showImg(pImg, f = zoomFactor)
         showImg(pImg)
-        showImg(pImg2)
     if poincare.outputFile:
 #        ims.append(getImg(pImg, color = "bgr"), f = zoomFactor)
         ims.append(getImg(pImg, color = "bgr"))
-        ims2.append(getImg(pImg2, color = "bgr"))
 
 
 if poincare.outputFile:
-    ims += list(reversed(ims2))
-    if 'mp4' in poincare.outputFile:
-        imageio.mimwrite(uri = poincare.outputFile, ims = ims, macro_block_size = None, fps = 24)
-    else:
-        imageio.mimwrite(uri = poincare.outputFile, ims = ims, fps = 24)
+    ims += list(reversed(ims))
+    imageio.mimwrite(uri = poincare.outputFile, ims = ims, macro_block_size = None, fps = 24)
 
