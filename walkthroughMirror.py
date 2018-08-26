@@ -20,24 +20,32 @@ colors = [
     ,(40, 0, 0)
     ,(30, 0, 0)
     ,(20, 0, 0)
-    ,(10, 0, 0)
+    ,(14, 0, 0)
+    ,(9, 0, 0)
+    ,(7, 0, 0)
     ,(5, 0, 0)
+    ,(3, 0, 0)
+    ,(2, 0, 0)
+    ,(1, 0, 0)    
 ]
 
 o = 0.0 + 0.0j
 
 #pImg.drawEdge()
 
+multiplier = 3
+
 def drawAllCircles(label):
-    pImg = poincare.poincareImg(radius = 3000, size = (4000, 4000))
+    pImg = poincare.poincareImg(radius = 800 * multiplier, size = (1000 * multiplier, 1000 * multiplier))
+    thickness = multiplier * 2 + 1
     for c in [c for c in allCircles if c.isLine() or c.radius < 10]:
         try:
-            pImg.drawCircle(c, c.color, thickness = 6)
+            pImg.drawCircle(c, c.color, thickness = thickness - 1)
         except:
             print "not drawn", c
 #    img = pImg.getImg(hasMask = False, resize = (800, 800))
     img = pImg.getImg(hasMask = False)
-    img = cv2.GaussianBlur(img, (5, 5), 5, 5)
+    img = cv2.GaussianBlur(img, (thickness, thickness), thickness, thickness)
     img = cv2.resize(img, dsize = (800, 800))
 #    print "circles count = {}".format(len(allCircles))
     if poincare.testMode:
@@ -118,11 +126,11 @@ def genInitCircles(angleA, angleB, offset = 0.0, zoom = 0.1):
 """
 
 
-def genCirclesIter(depth = 1, minRadius = 0.0, maxRadius = 1.7):
+def genCirclesIter(depth = 1, minRadius = 0.0, maxRadius = 99):
     circles = allCircles[:]
     for c1 in circles:
         for c2 in circles:
-            if c1 <> c2 and (not c1.isLine() or not c2.isLine()):
+            if c1 <> c2 and (not c1.isLine() or not c2.isLine()) and c2.radius < c1.radius + 0.001:# and c1.depth + c2.depth <= depth + 2:
                 c3 = poincare.getInverseCircle(c1, c2)
                 if c3.radius > minRadius and c3.radius < maxRadius and not c3.getKey() in allCirclesKeys:
                     c3.depth = c1.depth + c2.depth
@@ -132,7 +140,12 @@ def genCirclesIter(depth = 1, minRadius = 0.0, maxRadius = 1.7):
 
 def genCircles(depth = 1):
     for i in range(depth):
-        genCirclesIter(i, 0.001)
+        if i == 4:
+            m = 0.001
+        else:
+            m = 0.1
+        m = 0.0001
+        genCirclesIter(i, m)
 
 allCircles = []
 allCirclesKeys = defaultdict(int)
