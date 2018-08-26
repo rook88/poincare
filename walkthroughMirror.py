@@ -49,7 +49,7 @@ def drawAllCircles(label):
         cv2.imwrite(poincare.imagePath + '/' + label + '.jpg', img)
     return len(allCircles)
 
-def genInitCircles(angleA, angleB, offset = 0.0):
+def genInitCirclesOLD(angleA, angleB, offset = 0.0):
     l1 = poincare.circle(somePoint = 0, someDirection = 1j, inverseRadius = 0.0)
     l2 = poincare.circle(somePoint = 0, someDirection = 1, inverseRadius = 0.0)
     directionA = np.exp(np.pi * 1j * angleA)
@@ -77,6 +77,47 @@ def genInitCircles(angleA, angleB, offset = 0.0):
     return circles
 
 
+def genInitCircles(angleA, angleB, offset = 0.0, zoom = 0.1):
+    ret = []
+    directionB = np.exp(np.pi * 1j * angleB)
+    for i in range(int(1 / angleA + 0.5)):
+        directionA1 = np.exp(i * np.pi * 2j * angleA)
+        directionA2 = np.exp((i + 1) * np.pi * 2j * angleA)
+#        line = poincare.circle(somePoint = 0, someDirection = directionA , inverseRadius = 0.0)
+        pointA1 = directionA1 * zoom
+        pointA2 = directionA2 * zoom
+        directionC1 = directionA1 / directionB * 1j
+        directionC2 = directionA2 * directionB / 1j
+        la = poincare.circle(somePoint = pointA1, someDirection = directionC1, inverseRadius = 0.0)
+        lb = poincare.circle(somePoint = pointA2, someDirection = directionC2, inverseRadius = 0.0)
+        pointC = poincare.intersection(la, lb).z + offset
+        c1 = poincare.circle(center = pointC, radius = abs(pointA1 - pointC))
+#        print "test directions", directionC1, directionC2
+#        print "test points", pointA1, pointA2, pointC
+        ret.append(c1)
+    for circle in ret:
+        circle.color = colors[0]
+        circle.depth = 1
+    return ret
+"""
+
+    pointA = 0.1j * (np.cos(np.pi * angleA) + np.sin(np.pi * angleB))
+    pointB = 0.1 * (np.cos(np.pi * angleB) + np.sin(np.pi * angleA))
+
+
+
+    c2 = poincare.getInverseCircle(c1, l1)
+    c3 = poincare.getInverseCircle(c1, l2)
+    c4 = poincare.getInverseCircle(c2, l2)
+    circles = [c1, c2, c3, c4]
+#    circles = [l1, l2, c1, c2, c3, c4]
+    for c in circles:
+        c.color = colors[0]
+        c.depth = 1
+#        print c
+"""
+
+
 def genCirclesIter(depth = 1, minRadius = 0.0, maxRadius = 1.7):
     circles = allCircles[:]
     for c1 in circles:
@@ -96,9 +137,9 @@ def genCircles(depth = 1):
 allCircles = []
 allCirclesKeys = defaultdict(int)
 
-def genImg(label, depth, angleA, angleB, offset):
+def genImg(label, depth, angleA, angleB, offset, zoom):
     global allCircles, allCirclesKeys
-    allCircles = genInitCircles(angleA, angleB, offset)
+    allCircles = genInitCircles(angleA, angleB, offset, zoom)
     allCirclesKeys = defaultdict(int)
     genCircles(depth)
     allCircles.reverse()
@@ -109,21 +150,22 @@ i = 0
 timeFrameNow = poincare.zoom
 while True:
     i += 1
-    timeFrameNow = ( timeFrameNow + (np.sqrt(5) - 1) / 2) % 1  
     timeFrame = (1 + np.sin(timeFrameNow * np.pi - np.pi / 2)) / 2
     label = str(timeFrameNow)
 #    timeFrame = (1 + np.sin(timeFrame * np.pi - np.pi / 2)) / 2
 #    if i > 99:
 #        break
-    angleA = 1 / 4.0 
-    angleB = 1 / (5.0 + timeFrame)
+    angleA = 1 / 4.0
+    angleB = 1 / (4.0 + 0.01 + timeFrame * 1.99)
     offset = 0
+    zoom = 0.0001 + timeFrame * 0.3
 #    angleB = 1 / 7.0
 #    offset = np.exp(np.pi * 2j * timeFrame) - 1
 #    offset *= 0.1
-    count = genImg(label, poincare.depth, angleA, angleB, offset)
+    count = genImg(label, poincare.depth, angleA, angleB, offset, zoom)
     print "frameNumber = {} count = {} frameName = {} timeFrame = {} angleA = {} angleB = {}, offset = {}".format(i + 1, count, label, timeFrame, angleA, angleB, offset)
 #    roiOut = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    timeFrameNow = ( timeFrameNow + (np.sqrt(5) - 1) / 2) % 1  
 
 exit(0)
 
