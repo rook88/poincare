@@ -1,6 +1,7 @@
 
 import os
 import imageio
+import cv2
 
 def readLabels(path = "."):
     return [file for file in os.listdir(path) if file[-4:] == ".jpg"]
@@ -14,17 +15,22 @@ def sortLabels(labels, asFloat = False):
     else:
         labels.sort()
 
-def readImages(path = ".", nth = 1):
+def readImages(path = ".", nth = 1, lastn = 1):
     labels = readLabels(path)
     sortLabels(labels, asFloat = True)
     nthLabels = [labels[n * nth] for n in range(len(labels) / nth)]
     ret = []
     imageCount = len(nthLabels)
+    lastImages = []
     for label, i in zip(nthLabels, range(imageCount)):
         print "read image {}/{} : {}".format(i + 1, imageCount, label)
         im = imageio.imread(path + "/" + label)
+        lastImages = lastImages[-lastn:] + [im]
+        sumImg = lastImages[0]
+        for iterImg in lastImages[1:]:
+            sumImg = cv2.add(sumImg * 9 / 10, iterImg)
 #        print im
-        ret.append(im)
+        ret.append(sumImg)
     return ret
     
 def writeAnimation(outFile):
@@ -37,9 +43,10 @@ if __name__ == '__main__':
     parser.add_argument('imagePath', type=str, help = "path to read images")
     parser.add_argument('outFile', type=str, help = "filename for animation")
     parser.add_argument('--nth', type=int, default = 1, help = "process only every nth image")
+    parser.add_argument('--lastn', type=int, default = 1, help = "add last n images")
     parameters = parser.parse_args()
     print parameters
-    ims = readImages(parameters.imagePath, nth = parameters.nth)
+    ims = readImages(parameters.imagePath, nth = parameters.nth, lastn = parameters.lastn)
     writeAnimation(parameters.outFile)
     exit(0)
     
